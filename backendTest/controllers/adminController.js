@@ -127,32 +127,81 @@ const getCollegeDataByTypeAndRound = async (req, res) => {
 
 // get avilable years
 
-const getAvailableYears = async(req, res)=>{
-  try{
-    const years = await CollegeData.distinct("year");
-    if(!years || years.length ==0){
+const getCollegeMetaData = async (req, res) => {
+  try {
+    const aggregation = await CollegeData.aggregate([
+      {
+        $group: {
+          _id: {
+            counsellingType: "$counsellingType",
+            year: "$year"
+          },
+          maxRound: {
+            $max: {
+              $cond: [
+                { $eq: ["$round", "AR"] },
+                0,
+                { $toInt: "$round" }
+              ]
+            }
+          },
+          hasAR: {
+            $max: {
+              $cond: [
+                { $eq: ["$round", "AR"] },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    if (!aggregation.length) {
       return res.status(404).json({
-          status:"Fail",
-          message: "No counselling Data available"
+        status: "fail",
+        message: "No counselling data available"
       });
     }
 
-    const sortedYears = years.sort((a,b) => b-a);
-        res.status(200).json({
+    const meta = {};
+
+    aggregation.forEach(item => {
+      const type = item._id.counsellingType;
+      const year = item._id.year;
+
+      if (!meta[type]) {
+        meta[type] = { years: [] };
+      }
+
+      meta[type][year] = {
+        maxRound: item.maxRound,
+        hasAR: item.hasAR === 1
+      };
+
+      meta[type].years.push(year);
+    });
+
+    // sort years descending for each counselling type
+    Object.keys(meta).forEach(type => {
+      meta[type].years.sort((a, b) => b - a);
+    });
+
+    res.status(200).json({
       status: "success",
-      results: sortedYears.length,
-      years: sortedYears
+      meta
     });
 
   } catch (error) {
-    console.error("Years fetch error:", error);
+    console.error("Meta fetch error:", error);
 
     res.status(500).json({
       status: "error",
-      message: "Failed to fetch available years"
+      message: "Failed to fetch counselling metadata"
     });
   }
-}
+};
 /**
  * @desc    Upload college data from file
  * @route   POST /api/admin/college-data/upload
@@ -476,7 +525,7 @@ export const markAsRead = async (req, res) => {
 export {
   
   getAllUsers,
-  getAvailableYears,
+  getCollegeMetaData,
   getAllCollegeData,
   getCollegeDataByTypeAndRound,
   uploadCollegeData,

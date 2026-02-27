@@ -1,7 +1,7 @@
 import express from 'express';
 import { protect } from '../middlewares/auth.js';
 import { validateCollegeDataParams } from '../middlewares/ValidateCollegeData.js';
-import { getCollegeDataByTypeAndRound, getAvailableYears } from '../controllers/adminController.js';
+import { getCollegeDataByTypeAndRound, getCollegeMetaData } from '../controllers/adminController.js';
 
 import {
   submitFeedBack,
@@ -68,7 +68,7 @@ router.route('/plans')
   .get(GetPlan); // Get all plans
 
 
-  router.route('/get-college-data/available-years').get(getAvailableYears);
+  router.route('/get-college-data/metadata').get(getCollegeMetaData);
   
 // CollegeData Routes
 router.route('/get-college-data/:type/:year/:round')

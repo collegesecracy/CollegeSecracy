@@ -2,10 +2,10 @@ import api from "@/lib/axios";
 
 /* ---------------- GET AVAILABLE YEARS ---------------- */
 
-export const getAvailableYears = async () => {
+export const getCollegeMetaData = async () => {
   try {
     const res = await api.get(
-      `/api/v1/mentee/get-college-data/available-years`,
+      `/api/v1/mentee/get-college-data/metadata`,
       {
         withCredentials: true,
         headers: {
@@ -15,7 +15,7 @@ export const getAvailableYears = async () => {
     );
 
     if (res.data.status === "success") {
-      return res.data.years; // [2024, 2023, 2022]
+      return res.data.meta; 
     }
 
     throw new Error(res.data.message || "Failed to fetch years");

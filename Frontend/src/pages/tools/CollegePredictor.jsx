@@ -30,7 +30,7 @@ import {
 } from "@heroicons/react/24/outline";
 import {
   fetchCollegeData,
-  getAvailableYears,
+  getCollegeMetaData,
 } from "../../utils/parseCollegeData";
 
 import useEmailStore from "../../store/useEmailStore.js";
@@ -74,9 +74,12 @@ const CollegePredictor = () => {
   const [quota, setQuota] = useState("HS");
   const [gender, setGender] = useState("Gender-Neutral");
   const [round, setRound] = useState(1);
-  const [counsellingType, setCounsellingType] = useState("CSAB");
+  const [counsellingType, setCounsellingType] = useState("");
   const [collegeData, setCollegeData] = useState([]);
+  // metaData
   const [availableYears, setAvailableYears] = useState([]);
+  const [meta, setMeta] = useState({});
+  const [availableRounds, setAvailableRounds] = useState([]);
 const [selectedYear, setSelectedYear] = useState();
   const [predictedColleges, setPredictedColleges] = useState([]);
   const [filteredColleges, setFilteredColleges] = useState([]);
@@ -127,23 +130,49 @@ const [selectedYear, setSelectedYear] = useState();
   /* -------- LOAD AVAILABLE YEARS -------- */
 
 useEffect(() => {
-  const loadYears = async () => {
+  const loadMeta = async () => {
     try {
-      const years = await getAvailableYears();
+      const metaData = await getCollegeMetaData();
 
-      if (years && years.length > 0) {
-        setAvailableYears(years);
+      if (!metaData || Object.keys(metaData).length === 0) {
+        throw new Error("No metadata available");
       }
+
+      const allowedTypes = ["CSAB", "JOSAA"];
+
+      const filteredMeta = Object.keys(metaData)
+        .filter(type => allowedTypes.includes(type))
+        .reduce((acc, key) => {
+          acc[key] = metaData[key];
+          return acc;
+        }, {});
+
+      setMeta(filteredMeta);
+
+      const defaultType = allowedTypes[0];
+      setCounsellingType(defaultType);
+
+      const years = filteredMeta[defaultType]?.years || [];
+      setAvailableYears(years);
+      setSelectedYear(years[0]);
+
     } catch (error) {
-      console.error("Years loading error:", error);
-      showNotificationMessage(
-        "Failed to load available years",
-        true
-      );
+      showNotificationMessage("Failed to load metadata", true);
     }
   };
-  loadYears();
+
+  loadMeta();
 }, []);
+
+useEffect(() => {
+  if (!meta[counsellingType]) return;
+
+  const years = meta[counsellingType].years;
+
+  setAvailableYears(years);
+  setSelectedYear(years[0]);
+}, [counsellingType, meta]);
+
 
  useEffect(() => {
     if (availableYears.length > 0 && !selectedYear) {
@@ -151,8 +180,27 @@ useEffect(() => {
     }
   }, [availableYears]);
 
+
+  useEffect(() => {
+  if (!meta[counsellingType] || !selectedYear) return;
+
+  const yearData = meta[counsellingType][selectedYear];
+
+  if (!yearData) return;
+
+  const { maxRound, hasAR } = yearData;
+
+  let rounds = Array.from({ length: maxRound }, (_, i) => String(i + 1));
+  if (hasAR) rounds.push("AR");
+
+  setAvailableRounds(rounds);
+  setRound(rounds[0]);
+
+}, [selectedYear, counsellingType, meta]);
+
   // Data loading
   useEffect(() => {
+    if (!counsellingType || !round || !selectedYear) return;
     const loadData = async () => {
       try {
         setIsLoading(true);
@@ -864,20 +912,16 @@ const sendEmail = async (e) => {
                 <label className={`block mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Round</label>
                 <select
                   value={round}
-                  onChange={(e) => setRound(Number(e.target.value))}
+                  onChange={(e) => setRound(e.target.value)}
                   className={`w-full rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 border ${
                     darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'
                   }`}
                 >
-                  <option value="1">Round 1</option>
-                  <option value="2">Round 2</option>
-                  {counsellingType === "JoSAA" && (
-                    <>
-                      <option value="3">Round 3</option>
-                      <option value="4">Round 4</option>
-                      <option value="5">Round 5</option>
-                    </>
-                  )}
+                  {availableRounds.map((r) => (
+                  <option key={r} value={r}>
+                  {r === "AR" ? "Additional Round (AR)" : `Round ${r}`}
+                  </option>
+                  ))}
                 </select>
               </div>
               {/* YEAR SELECTOR */}
@@ -893,7 +937,7 @@ const sendEmail = async (e) => {
 
 <select
   value={selectedYear}
-  onChange={(e) => setSelectedYear(e.target.value)}
+  onChange={(e) => setSelectedYear(Number(e.target.value))}
   className={`w-full rounded-lg px-4 py-3 border ${
     darkMode
       ? "bg-gray-700 border-gray-600 text-white"  
@@ -934,7 +978,7 @@ const sendEmail = async (e) => {
 
             <button
               onClick={predictColleges}
-              disabled={!rank || collegeData.data?.length === 0}
+              disabled={!rank || !collegeData?.data?.length}
               className={`w-full bg-gradient-to-r md:text-base text-sm from-orange-600 to-orange-500 text-white font-bold py-3 px-6 rounded-lg transition-all ${
                 !rank || collegeData.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:from-orange-500 hover:to-orange-400 shadow-md hover:shadow-lg'
               } flex items-center justify-center gap-2`}

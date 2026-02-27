@@ -18,12 +18,12 @@ const processQueue = (error, token = null) => {
 
 // 📦 Request Interceptor
 api.interceptors.request.use(config => {
-  console.log('[Axios] Request:', {
-    url: config.url,
-    method: config.method,
-    headers: config.headers,
-    data: config.data
-  });
+  // console.log('[Axios] Request:', {
+  //   url: config.url,
+  //   method: config.method,
+  //   headers: config.headers,
+  //   data: config.data
+  // });
   return config;
 }, error => {
   console.error('[Axios] Request error:', error);
@@ -33,12 +33,12 @@ api.interceptors.request.use(config => {
 // 🔁 Response Interceptor with Refresh Token Handling
 api.interceptors.response.use(
   response => {
-    console.log('[Axios] Response:', {
-      status: response.status,
-      statusText: response.statusText,
-      data: response.data,
-      headers: response.headers
-    });
+    // console.log('[Axios] Response:', {
+    //   status: response.status,
+    //   statusText: response.statusText,
+    //   data: response.data,
+    //   headers: response.headers
+    // });
     return response;
   },
   async error => {
